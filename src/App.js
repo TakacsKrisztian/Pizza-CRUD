@@ -1,19 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import './App.css';
+import 'bootstrap/dist/css/bootstrap.css';
 
 const PizzaComponent = () => {
-  const [state, setState] = useState([]);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPizza] = useState({
-    id: 1,
-    name: 'Négysajtos pizza',
+  const [pizzas, setPizzas] = useState([]);
+  const [newPizza, setNewPizza] = useState({
+    id: 0,
+    name: '',
     isGlutenFree: 0,
-    kepURL:
-      'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fparkpizza.hu%2Fwp-content%2Fuploads%2F2018%2F05%2FN%25C3%25A9gysajtos-pizza.jpg&f=1&nofb=1&ipt=aec291f02b2c6cf7c3a0903b03b44b9dcba4f470587e554552ee50eb71d7f896&ipo=images',
+    kepURL: '',
   });
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
+  const renderPizzas = () => {
+    if (!pizzas) {
+      return <p>Betöltés...</p>;
+    }
+
+    if (pizzas.length === 0) {
+      return <p>Nincs pizza.</p>;
+    }
+    };
+  const fetchPizzas = async () => {
+    try {
+      const response = await fetch('https://pizza.kando-dev.eu/Pizza');
+      if (!response.ok) {
+        throw new Error('Failed to fetch pizzas');
+      }
+
+      const pizzaPage = await response.json();
+      console.log('Pizzas:', pizzaPage);
+      setPizzas(pizzaPage.data);
+    } catch (error) {
+      console.error('Error fetching pizzas:', error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchPizzas();
+  }, []);
+
+  const addPizza = async () => {
     try {
       const response = await fetch('https://pizza.kando-dev.eu/Pizza', {
         method: 'POST',
@@ -22,74 +48,107 @@ const PizzaComponent = () => {
         },
         body: JSON.stringify(newPizza),
       });
+
       if (!response.ok) {
-        throw new Error('Login hiba!');
+        throw new Error('Failed to add pizza');
       }
-      await readPizza();
+
+      fetchPizzas();
     } catch (error) {
-      console.log(error);
+      console.error('Error adding pizza:', error.message);
     }
   };
 
-  const readPizza = async () => {
+  const updatePizza = async (id, updatedPizza) => {
     try {
-      const response = await fetch('https://pizza.kando-dev.eu/Pizza');
+      const response = await fetch(`https://pizza.kando-dev.eu/Pizza/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedPizza),
+      });
+
       if (!response.ok) {
-        throw new Error('Pizza hiba!');
+        throw new Error('Failed to update pizza');
       }
-      const pizzaPage = await response.json();
-      setState(pizzaPage.data);
+
+      fetchPizzas();
     } catch (error) {
-      console.log(error);
+      console.error('Error updating pizza:', error.message);
     }
   };
 
-  useEffect(() => {
-    readPizza();
-  }, []);
+  const deletePizza = async (id) => {
+    try {
+      const response = await fetch(`https://pizza.kando-dev.eu/Pizza/${id}`, {
+        method: 'DELETE',
+      });
 
-  const renderPizza = () => {
-    if (!state || state.length === 0) {
-      return <p>Nincs megjeleníthető pizza</p>;
+      if (!response.ok) {
+        throw new Error('Failed to delete pizza');
+      }
+
+      fetchPizzas();
+    } catch (error) {
+      console.error('Error deleting pizza:', error.message);
     }
-  
-    return state.map((pizza) => (
-      <React.Fragment key={pizza.id}>
-        <li className="list-group-item">{`${pizza.name} ${pizza.isGlutenFree}`}</li>
-        <li className="list-group-item">
-          <center>
-            <img src={pizza.kepURL} alt={pizza.name} width="300" />
-          </center>
-        </li>
-      </React.Fragment>
-    ));
   };
-  
+
+  const handleAddPizza = () => {
+    addPizza();
+    setNewPizza({
+      id: 0,
+      name: '',
+      isGlutenFree: 0,
+      kepURL: '',
+    });
+  };
+
+  const handleUpdatePizza = (id, updatedPizza) => {
+    updatePizza(id, updatedPizza);
+  };
+
+  const handleDeletePizza = (id) => {
+    deletePizza(id);
+  };
+
   return (
     <div>
-      <form onSubmit={handleLogin}>
+      <h1>Pizza lista:</h1>
+      {renderPizzas()}
+      <div>
+        <h2>Pizza hozzáadása</h2>
         <label>
-          Email:
+          Név:
           <input
             type="text"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={newPizza.name}
+            onChange={(e) => setNewPizza({ ...newPizza, name: e.target.value })}
           />
         </label>
         <br />
         <label>
-          Jelszó:
+          Gluténmentes-e:
           <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="checkbox"
+            checked={newPizza.isGlutenFree}
+            onChange={(e) =>
+              setNewPizza({ ...newPizza, isGlutenFree: e.target.checked ? 1 : 0 })
+            }
           />
         </label>
         <br />
-        <button type="submit">Bejelentkezés</button>
-      </form>
-      <div id="user-lista-container">
-        <ul className="list-group">{renderPizza()}</ul>
+        <label>
+          Kép URL:
+          <input
+            type="text"
+            value={newPizza.kepURL}
+            onChange={(e) => setNewPizza({ ...newPizza, kepURL: e.target.value })}
+          />
+        </label>
+        <br />
+        <button onClick={handleAddPizza}>Pizza hozzáadása</button>
       </div>
     </div>
   );
